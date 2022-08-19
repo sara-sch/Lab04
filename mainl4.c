@@ -30,6 +30,8 @@
 #include <pic16f887.h>
 #include "I2C.h"
 #include "oscilador_1.h"
+#include "adc_1.h"
+
 
 //Definición de variables
 #define _XTAL_FREQ 4000000
@@ -71,30 +73,39 @@ void __interrupt() isr(void){
             __delay_us(250);
             while(SSPSTATbits.BF);
         }
-        
-        PIR1bits.SSPIF = 0; 
-        
+        PIR1bits.SSPIF = 0;  
     }
+    if(PIR1bits.ADIF){
+            PORTB = adc_read();
+        }
     
 }
 
 void main (void){
     setup();
-    while(1){          
+    while(1){ 
+        adc_start(0); //iniciamos lectura ADC
     }
     return;
 }
 
 void setup(void){
-    ANSEL = 0;
+    ANSEL = 0b1;
     ANSELH = 0;
     
-    //TRISB = 0;
+    TRISA = 0b00000001;
+    TRISB = 0;
     TRISD = 0xf0;
     
-    //PORTB = 0;
+    PORTA = 0;
+    PORTB = 0;
     PORTD = 0;
     int_osc_MHz(4);
+    INTCONbits.PEIE = 1;        // Habilitamos int. de perifericos
+    INTCONbits.GIE = 1;         // Habilitamos int. globales
+    PIR1bits.ADIF = 0;          // Limpiamos bandera de ADC
+    PIE1bits.ADIE = 1;          // Habilitamos interrupcion de ADC
+    adc_init(1,0,0);
     I2C_Slave_Init(0x50);
 }
 

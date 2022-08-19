@@ -2871,6 +2871,19 @@ void I2C_Slave_Init(uint8_t address);
 void int_osc_MHz (uint8_t freq);
 # 32 "mainl4.c" 2
 
+# 1 "./adc_1.h" 1
+# 13 "./adc_1.h"
+# 1 "C:\\Program Files\\Microchip\\xc8\\v2.35\\pic\\include\\c90\\stdint.h" 1 3
+# 13 "./adc_1.h" 2
+
+
+
+void adc_init(uint8_t adc_cs, uint8_t vref_plus, uint8_t vref_minus);
+void adc_start(uint8_t channel);
+uint16_t adc_read(void);
+# 33 "mainl4.c" 2
+
+
 
 
 
@@ -2912,29 +2925,38 @@ void __attribute__((picinterrupt(("")))) isr(void){
             _delay((unsigned long)((250)*(4000000/4000000.0)));
             while(SSPSTATbits.BF);
         }
-
         PIR1bits.SSPIF = 0;
-
     }
+    if(PIR1bits.ADIF){
+            PORTB = adc_read();
+        }
 
 }
 
 void main (void){
     setup();
     while(1){
+        adc_start(0);
     }
     return;
 }
 
 void setup(void){
-    ANSEL = 0;
+    ANSEL = 0b1;
     ANSELH = 0;
 
-
+    TRISA = 0b00000001;
+    TRISB = 0;
     TRISD = 0xf0;
 
-
+    PORTA = 0;
+    PORTB = 0;
     PORTD = 0;
     int_osc_MHz(4);
+    INTCONbits.PEIE = 1;
+    INTCONbits.GIE = 1;
+    PIR1bits.ADIF = 0;
+    PIE1bits.ADIE = 1;
+    adc_init(1,0,0);
     I2C_Slave_Init(0x50);
 }

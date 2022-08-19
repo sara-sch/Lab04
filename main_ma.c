@@ -66,12 +66,11 @@ void main(void){
         I2C_Master_Stop();
         __delay_ms(20);
        
-//        I2C_Master_Start();
-//        I2C_Master_Write(0x51);
-//        PORTD = I2C_Master_Read(0);
-//        I2C_Master_Stop();
-//        __delay_ms(200);
-//        PORTB++;  
+        I2C_Master_Start();
+        I2C_Master_Write(0x51); //Leemos desde el PIC2, ponemos address
+        PORTD = I2C_Master_Read(0);//leemos valor del POT
+        I2C_Master_Stop(); //STOP
+        __delay_ms(10); 
     }
     return;
 }
@@ -82,6 +81,9 @@ void setup(void){
     
     TRISB = 0x0f;
     PORTB = 0;
+    
+    TRISD = 0;
+    PORTD = 0;
     
     INTCONbits.T0IE = 1;        // Habiltamos interrupciones
     INTCONbits.PEIE = 1;
