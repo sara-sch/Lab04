@@ -31,46 +31,71 @@
 #include "I2C.h"
 #include "tmr0.h"
 #include "oscilador_1.h"
+#include "lcd.h"
 
 //Definición de variables
 #define _XTAL_FREQ 4000000
 
-uint8_t cont = 0;
-uint8_t cont2 = 0;
-uint8_t send = 0;
+uint8_t pot = 0;
+uint8_t entero = 0;
+uint8_t decimal = 0;
+
+uint8_t hora = 5;                            
+uint8_t minutos = 25;                          
+uint8_t segundos = 15;                          
+
+unsigned short voltaje = 0;
+char s[];
 
 //Definicion de funciones
 void setup (void);
 
+unsigned short map(uint8_t val, uint8_t in_min, uint8_t in_max, 
+            unsigned short out_min, unsigned short out_max);
 
-void __interrupt() isr (void){  
-    if(INTCONbits.T0IF){
-            cont++;
-            if (cont == 18){
-                cont = 0; 
-                cont2++; 
-            }
-            PORTB = cont2;
-    }
-    tmr0_reload();
-    return;
-}
-
+uint8_t BCD_decimal (uint8_t number);
+uint8_t decimal_BCD (uint8_t number); 
 
 void main(void){
     setup();
+    
+    segundos = decimal_BCD(segundos);
+    minutos = decimal_BCD(minutos);
+    hora = decimal_BCD(hora);
+
+    I2C_Master_Start();                
+    I2C_Master_Write(0xD0);            
+    I2C_Master_Write(0x00);            
+    I2C_Master_Write(segundos);            
+    I2C_Master_Write(minutos);         
+    I2C_Master_Write(hora);          
+    I2C_Master_Stop();                 
+    __delay_ms(200);            
+    
     while (1){
         I2C_Master_Start();
         I2C_Master_Write(0x50);
-        I2C_Master_Write(cont2);
+        I2C_Master_Write(PORTB);
         I2C_Master_Stop();
         __delay_ms(20);
        
         I2C_Master_Start();
-        I2C_Master_Write(0x51); //Leemos desde el PIC2, ponemos address
-        PORTD = I2C_Master_Read(0);//leemos valor del POT
-        I2C_Master_Stop(); //STOP
+        I2C_Master_Write(0x51); 
+        pot = I2C_Master_Read(0);
+        I2C_Master_Stop(); 
         __delay_ms(10); 
+        
+        voltaje = map(pot, 0, 255, 0, 500); 
+        entero = voltaje/100; 
+        decimal = voltaje-entero*100; 
+        
+        Lcd_Set_Cursor_8(1,1);
+            Lcd_Write_String_8("POT");
+            Lcd_Set_Cursor_8(2,1);
+            sprintf(s, " %d.%d%dV ", entero, decimal/10, decimal%10); 
+            Lcd_Set_Cursor_8(2,1);
+            
+            Lcd_Write_String_8(s);
     }
     return;
 }
@@ -79,17 +104,34 @@ void setup(void){
     ANSEL = 0;
     ANSELH = 0;
     
-    TRISB = 0x0f;
+    TRISB = 1; 
     PORTB = 0;
     
     TRISD = 0;
     PORTD = 0;
     
-    INTCONbits.T0IE = 1;        // Habiltamos interrupciones
+    TRISE = 0;
+    PORTE = 0;
+    
     INTCONbits.PEIE = 1;
     INTCONbits.GIE = 1;
     
     int_osc_MHz(4);
     I2C_Master_Init(100000);
-    tmr0_init(256);  
+    Lcd_Init_8(); 
+    Lcd_Clear_8(); 
+}
+
+unsigned short map(uint8_t x, uint8_t x0, uint8_t x1,
+            unsigned short y0, unsigned short y1){
+    return (unsigned short)(y0+((float)(y1-y0)/(x1-x0))*(x-x0));
+}
+
+uint8_t BCD_decimal (uint8_t number)           
+{
+  return ((number >> 4) * 10 + (number & 0x0F));  
+}
+uint8_t decimal_BCD (uint8_t number)            
+{
+    return (((number / 10) << 4) + (number % 10));
 }
